@@ -157,34 +157,34 @@ export default function TeamsPage() {
     const capacity = categoryCapacity[player.finalCategory] || 0;
 
     setTeams(
-teams.map((team) => {
-        if (team.id !== teamId) return team;
+    teams.map((team) => {
+            if (team.id !== teamId) return team;
 
-        const alreadyAdded = selectedPlayerIds.includes(player.id);
-        if (alreadyAdded) return team;
+            const alreadyAdded = selectedPlayerIds.includes(player.id);
+            if (alreadyAdded) return team;
 
-        const currentCategoryCount = team.players.filter(
-          (p) => p.category === player.finalCategory
-        ).length;
+            const currentCategoryCount = team.players.filter(
+            (p) => p.category === player.finalCategory
+            ).length;
 
-        if (capacity > 0 && currentCategoryCount >= capacity) {
-          alert(`Category ${player.finalCategory} is full for ${team.name}`);
-          return team;
-        }
+            if (capacity > 0 && currentCategoryCount >= capacity) {
+            alert(`Category ${player.finalCategory} is full for ${team.name}`);
+            return team;
+            }
 
-        return {
-          ...team,
-          players: [
-            ...team.players,
-            {
-              playerId: player.id,
-              category: player.finalCategory,
-            },
-          ],
-        };
-      })
-    );
-  };
+            return {
+            ...team,
+            players: [
+                ...team.players,
+                {
+                playerId: player.id,
+                category: player.finalCategory!,
+                },
+            ],
+            };
+        })
+        );
+    };
 
   const removePlayerFromTeam = (teamId: number, playerId: number) => {
     setTeams(
