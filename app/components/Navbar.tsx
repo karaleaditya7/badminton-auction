@@ -34,12 +34,15 @@ export default function Navbar() {
         </>
       )}
 
-      <button
-        onClick={logout}
-        className="rounded bg-red-600 px-4 py-2 text-white"
-      >
+        <button
+        onClick={() => {
+            localStorage.removeItem("role");
+            window.location.href = "/login";
+        }}
+        className="rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+        >
         Logout
-      </button>
+        </button>
     </div>
   );
 }
