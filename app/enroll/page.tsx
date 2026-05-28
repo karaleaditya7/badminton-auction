@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Navbar from "./components/Navbar";type Player = {
+import Navbar from "../components/Navbar";
+type Player = {
   id: number;
   name: string;
   mobile: string;

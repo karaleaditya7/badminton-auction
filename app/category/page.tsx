@@ -14,12 +14,22 @@ type AssignedPlayer = Player & {
   finalCategory: string;
 };
 
+type CategoryCapacity = {
+  [category: string]: number;
+};
+
 export default function CategoryPage() {
+  const role =
+    typeof window !== "undefined" ? localStorage.getItem("role") : "";
+
   const [categoryName, setCategoryName] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [assignedPlayers, setAssignedPlayers] = useState<AssignedPlayer[]>([]);
   const [showPlayers, setShowPlayers] = useState(false);
+  const [categoryCapacity, setCategoryCapacity] = useState<CategoryCapacity>(
+    {}
+  );
 
   const fetchPlayers = async () => {
     const response = await fetch("/api/players", { cache: "no-store" });
@@ -33,9 +43,33 @@ export default function CategoryPage() {
     setCategories(data);
   };
 
+  const fetchCategoryCapacity = async () => {
+    const response = await fetch("/api/category-capacity", {
+      cache: "no-store",
+    });
+
+    const data = await response.json();
+    const capacityObject: CategoryCapacity = {};
+
+    data.forEach((item: { category: string; capacity: number }) => {
+      capacityObject[item.category] = item.capacity;
+    });
+
+    setCategoryCapacity(capacityObject);
+  };
+
+  useEffect(() => {
+    const currentRole = localStorage.getItem("role");
+
+    if (currentRole !== "admin" && currentRole !== "user") {
+      window.location.href = "/";
+    }
+  }, []);
+
   useEffect(() => {
     fetchPlayers();
     fetchCategories();
+    fetchCategoryCapacity();
 
     const savedAssignedPlayers = localStorage.getItem("assignedPlayers");
 
@@ -86,6 +120,40 @@ export default function CategoryPage() {
     }
   };
 
+  const saveCapacity = async (category: string, capacity: number) => {
+    await fetch("/api/category-capacity", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ category, capacity }),
+    });
+
+    await fetchCategoryCapacity();
+  };
+
+  const increaseCapacity = async (category: string) => {
+    const newCapacity = (categoryCapacity[category] || 0) + 1;
+
+    setCategoryCapacity({
+      ...categoryCapacity,
+      [category]: newCapacity,
+    });
+
+    await saveCapacity(category, newCapacity);
+  };
+
+  const decreaseCapacity = async (category: string) => {
+    const newCapacity = Math.max((categoryCapacity[category] || 0) - 1, 0);
+
+    setCategoryCapacity({
+      ...categoryCapacity,
+      [category]: newCapacity,
+    });
+
+    await saveCapacity(category, newCapacity);
+  };
+
   const assignPlayerToCategory = (player: Player, finalCategory: string) => {
     const withoutThisPlayer = assignedPlayers.filter((p) => p.id !== player.id);
 
@@ -122,34 +190,75 @@ export default function CategoryPage() {
   return (
     <main className="min-h-screen bg-gray-100 p-6">
       <div className="mx-auto max-w-7xl rounded-xl bg-white p-6 shadow">
-      <Navbar />
+        <Navbar />
+
         <h1 className="mb-6 text-3xl font-bold">🏸 Category Dashboard</h1>
 
-        <div className="mb-8 rounded border p-4">
-          <h2 className="mb-3 text-xl font-semibold">Create Category</h2>
+        {role === "admin" && (
+          <div className="mb-8 rounded border p-4">
+            <h2 className="mb-3 text-xl font-semibold">Create Category</h2>
 
-          <div className="flex gap-3">
-            <input
-              value={categoryName}
-              onChange={(e) => setCategoryName(e.target.value)}
-              placeholder="Example: A+, A, B+, B, C"
-              className="flex-1 rounded border p-3"
-            />
+            <div className="flex gap-3">
+              <input
+                value={categoryName}
+                onChange={(e) => setCategoryName(e.target.value)}
+                placeholder="Example: A+, A, B+, B, C"
+                className="flex-1 rounded border p-3"
+              />
 
-            <button
-              onClick={createCategory}
-              className="rounded bg-blue-600 px-5 text-white hover:bg-blue-700"
-            >
-              Create Category
-            </button>
+              <button
+                onClick={createCategory}
+                className="rounded bg-blue-600 px-5 text-white hover:bg-blue-700"
+              >
+                Create Category
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {categories.length > 0 && role === "admin" && (
+          <div className="mb-8 rounded border p-4">
+            <h2 className="mb-4 text-xl font-semibold">Category Capacity</h2>
+
+            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+              {categories.map((category) => (
+                <div
+                  key={category}
+                  className="flex items-center justify-between rounded border bg-gray-50 p-3"
+                >
+                  <span className="font-semibold">{category}</span>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => decreaseCapacity(category)}
+                      className="rounded bg-red-500 px-3 py-1 text-white"
+                    >
+                      -
+                    </button>
+
+                    <span className="font-bold">
+                      {categoryCapacity[category] || 0}
+                    </span>
+
+                    <button
+                      onClick={() => increaseCapacity(category)}
+                      className="rounded bg-green-600 px-3 py-1 text-white"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <button
           onClick={async () => {
             setShowPlayers(!showPlayers);
             await fetchPlayers();
             await fetchCategories();
+            await fetchCategoryCapacity();
           }}
           className="mb-6 rounded bg-green-600 px-5 py-3 text-white hover:bg-green-700"
         >
@@ -183,11 +292,6 @@ export default function CategoryPage() {
                           {index + 1}. {player.name}
                         </p>
 
-                        {/* <p className="text-sm text-gray-600">
-                          Mobile: {player.mobile}{" "}
-                          {player.category}
-                        </p> */}
-
                         {assignedCategory && (
                           <p className="mt-1 text-sm font-semibold text-green-700">
                             Final Category: {assignedCategory}
@@ -195,19 +299,21 @@ export default function CategoryPage() {
                         )}
                       </div>
 
-                      <div className="flex flex-wrap gap-2">
-                        {categories.map((category) => (
-                          <button
-                            key={category}
-                            onClick={() =>
-                              assignPlayerToCategory(player, category)
-                            }
-                            className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
-                          >
-                            {category}
-                          </button>
-                        ))}
-                      </div>
+                      {role === "admin" && (
+                        <div className="flex flex-wrap gap-2">
+                          {categories.map((category) => (
+                            <button
+                              key={category}
+                              onClick={() =>
+                                assignPlayerToCategory(player, category)
+                              }
+                              className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+                            >
+                              {category}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -233,13 +339,19 @@ export default function CategoryPage() {
                   <div className="mb-4 flex items-center justify-between gap-2">
                     <h3 className="text-xl font-bold">Category {category}</h3>
 
-                    <button
-                      onClick={() => deleteCategory(category)}
-                      className="rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
-                    >
-                      Delete
-                    </button>
+                    {role === "admin" && (
+                      <button
+                        onClick={() => deleteCategory(category)}
+                        className="rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
+
+                  <p className="mb-3 text-sm font-semibold text-gray-600">
+                    Capacity: {categoryCapacity[category] || 0}
+                  </p>
 
                   {categoryPlayers.length === 0 ? (
                     <p className="text-sm text-gray-500">No players added.</p>
@@ -255,12 +367,14 @@ export default function CategoryPage() {
                               {index + 1}. {player.name}
                             </span>
 
-                            <button
-                              onClick={() => removeFromCategory(player.id)}
-                              className="rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700"
-                            >
-                              Remove
-                            </button>
+                            {role === "admin" && (
+                              <button
+                                onClick={() => removeFromCategory(player.id)}
+                                className="rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700"
+                              >
+                                Remove
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}

@@ -1,31 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function Navbar() {
-  const pathname = usePathname();
+  const [role, setRole] = useState("");
 
-  const navClass = (path: string) =>
-    `rounded px-4 py-2 text-white transition ${
-      pathname === path
-        ? "bg-black"
-        : "bg-gray-700 hover:bg-gray-800"
-    }`;
+  useEffect(() => {
+    setRole(localStorage.getItem("role") || "");
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem("role");
+    localStorage.removeItem("username");
+    window.location.href = "/";
+  };
 
   return (
     <div className="mb-6 flex justify-end gap-3">
-      <Link href="/" className={navClass("/")}>
-        Players
+      <Link href="/enroll" className="rounded bg-gray-700 px-4 py-2 text-white">
+        Enrollment
       </Link>
 
-      <Link href="/category" className={navClass("/category")}>
-        Category
-      </Link>
+      {(role === "admin" || role === "user") && (
+        <>
+          <Link href="/category" className="rounded bg-blue-600 px-4 py-2 text-white">
+            Category
+          </Link>
 
-      <Link href="/teams" className={navClass("/teams")}>
-        Teams
-      </Link>
+          <Link href="/teams" className="rounded bg-green-600 px-4 py-2 text-white">
+            Teams
+          </Link>
+        </>
+      )}
+
+      <button
+        onClick={logout}
+        className="rounded bg-red-600 px-4 py-2 text-white"
+      >
+        Logout
+      </button>
     </div>
   );
 }

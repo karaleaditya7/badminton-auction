@@ -27,15 +27,22 @@ type CategoryCapacity = {
 };
 
 export default function TeamsPage() {
+  const role =
+    typeof window !== "undefined" ? localStorage.getItem("role") : "";
+
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamName, setTeamName] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
-  const [categoryCapacity, setCategoryCapacity] = useState<CategoryCapacity>({});
+  const [categoryCapacity, setCategoryCapacity] = useState<CategoryCapacity>(
+    {}
+  );
 
   const fetchPlayers = () => {
     const savedAssignedPlayers = localStorage.getItem("assignedPlayers");
-    if (savedAssignedPlayers) setPlayers(JSON.parse(savedAssignedPlayers));
+    if (savedAssignedPlayers) {
+      setPlayers(JSON.parse(savedAssignedPlayers));
+    }
   };
 
   const fetchCategories = async () => {
@@ -81,6 +88,14 @@ export default function TeamsPage() {
     fetchCategoryCapacity();
   }, []);
 
+  useEffect(() => {
+    const currentRole = localStorage.getItem("role");
+  
+    if (currentRole !== "admin" && currentRole !== "user") {
+      window.location.href = "/";
+    }
+  }, []);
+
   const selectedPlayerIds = teams.flatMap((team) =>
     team.players.map((player) => player.playerId)
   );
@@ -117,74 +132,40 @@ export default function TeamsPage() {
     }
   };
 
-  const saveCapacity = async (category: string, capacity: number) => {
-    await fetch("/api/category-capacity", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ category, capacity }),
-    });
-
-    await fetchCategoryCapacity();
-  };
-
-  const increaseCapacity = async (category: string) => {
-    const newCapacity = (categoryCapacity[category] || 0) + 1;
-
-    setCategoryCapacity({
-      ...categoryCapacity,
-      [category]: newCapacity,
-    });
-
-    await saveCapacity(category, newCapacity);
-  };
-
-  const decreaseCapacity = async (category: string) => {
-    const newCapacity = Math.max((categoryCapacity[category] || 0) - 1, 0);
-
-    setCategoryCapacity({
-      ...categoryCapacity,
-      [category]: newCapacity,
-    });
-
-    await saveCapacity(category, newCapacity);
-  };
-
   const addPlayerToTeam = (teamId: number, player: Player) => {
     if (!player.finalCategory) return;
 
     const capacity = categoryCapacity[player.finalCategory] || 0;
 
     setTeams(
-    teams.map((team) => {
-            if (team.id !== teamId) return team;
+      teams.map((team) => {
+        if (team.id !== teamId) return team;
 
-            const alreadyAdded = selectedPlayerIds.includes(player.id);
-            if (alreadyAdded) return team;
+        const alreadyAdded = selectedPlayerIds.includes(player.id);
+        if (alreadyAdded) return team;
 
-            const currentCategoryCount = team.players.filter(
-            (p) => p.category === player.finalCategory
-            ).length;
+        const currentCategoryCount = team.players.filter(
+          (p) => p.category === player.finalCategory
+        ).length;
 
-            if (capacity > 0 && currentCategoryCount >= capacity) {
-            alert(`Category ${player.finalCategory} is full for ${team.name}`);
-            return team;
-            }
+        if (capacity > 0 && currentCategoryCount >= capacity) {
+          alert(`Category ${player.finalCategory} is full for ${team.name}`);
+          return team;
+        }
 
-            return {
-            ...team,
-            players: [
-                ...team.players,
-                {
-                playerId: player.id,
-                category: player.finalCategory!,
-                },
-            ],
-            };
-        })
-        );
-    };
+        return {
+          ...team,
+          players: [
+            ...team.players,
+            {
+              playerId: player.id,
+              category: player.finalCategory!,
+            },
+          ],
+        };
+      })
+    );
+  };
 
   const removePlayerFromTeam = (teamId: number, playerId: number) => {
     setTeams(
@@ -208,62 +189,28 @@ export default function TeamsPage() {
   return (
     <main className="min-h-screen bg-gray-100 p-6">
       <div className="mx-auto max-w-7xl rounded-xl bg-white p-6 shadow">
-      <Navbar />
+        <Navbar />
+
         <h1 className="mb-6 text-3xl font-bold">🏸 Create Teams</h1>
 
-        <div className="mb-8 rounded border p-4">
-          <h2 className="mb-3 text-xl font-semibold">Create Team</h2>
-
-          <div className="flex gap-3">
-            <input
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              placeholder="Enter Team Name"
-              className="flex-1 rounded border p-3"
-            />
-
-            <button
-              onClick={createTeam}
-              className="rounded bg-blue-600 px-5 text-white hover:bg-blue-700"
-            >
-              Create
-            </button>
-          </div>
-        </div>
-
-        {categories.length > 0 && (
+        {role === "admin" && (
           <div className="mb-8 rounded border p-4">
-            <h2 className="mb-4 text-xl font-semibold">Category Capacity</h2>
+            <h2 className="mb-3 text-xl font-semibold">Create Team</h2>
 
-            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-              {categories.map((category) => (
-                <div
-                  key={category}
-                  className="flex items-center justify-between rounded border bg-gray-50 p-3"
-                >
-                  <span className="font-semibold">{category}</span>
+            <div className="flex gap-3">
+              <input
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="Enter Team Name"
+                className="flex-1 rounded border p-3"
+              />
 
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => decreaseCapacity(category)}
-                      className="rounded bg-red-500 px-3 py-1 text-white"
-                    >
-                      -
-                    </button>
-
-                    <span className="font-bold">
-                      {categoryCapacity[category] || 0}
-                    </span>
-
-                    <button
-                      onClick={() => increaseCapacity(category)}
-                      className="rounded bg-green-600 px-3 py-1 text-white"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              ))}
+              <button
+                onClick={createTeam}
+                className="rounded bg-blue-600 px-5 text-white hover:bg-blue-700"
+              >
+                Create
+              </button>
             </div>
           </div>
         )}
@@ -284,6 +231,7 @@ export default function TeamsPage() {
                   team={team}
                   players={players}
                   selectedPlayerIds={selectedPlayerIds}
+                  role={role}
                   deleteTeam={deleteTeam}
                   addPlayerToTeam={addPlayerToTeam}
                 />
@@ -323,17 +271,19 @@ export default function TeamsPage() {
                                   {index + 1}. {getPlayerName(player.playerId)}
                                 </span>
 
-                                <button
-                                  onClick={() =>
-                                    removePlayerFromTeam(
-                                      team.id,
-                                      player.playerId
-                                    )
-                                  }
-                                  className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
-                                >
-                                  Remove
-                                </button>
+                                {role === "admin" && (
+                                  <button
+                                    onClick={() =>
+                                      removePlayerFromTeam(
+                                        team.id,
+                                        player.playerId
+                                      )
+                                    }
+                                    className="rounded bg-red-500 px-2 py-1 text-xs text-white hover:bg-red-600"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -355,12 +305,14 @@ function TeamHeader({
   team,
   players,
   selectedPlayerIds,
+  role,
   deleteTeam,
   addPlayerToTeam,
 }: {
   team: Team;
   players: Player[];
   selectedPlayerIds: number[];
+  role: string | null;
   deleteTeam: (teamId: number) => Promise<void>;
   addPlayerToTeam: (teamId: number, player: Player) => void;
 }) {
@@ -386,41 +338,45 @@ function TeamHeader({
       <div className="mb-4 flex items-center justify-between gap-2">
         <h2 className="text-xl font-bold">{team.name}</h2>
 
-        <button
-          onClick={() => deleteTeam(team.id)}
-          className="rounded bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
-        >
-          Delete
-        </button>
+        {role === "admin" && (
+          <button
+            onClick={() => deleteTeam(team.id)}
+            className="rounded bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
+          >
+            Delete
+          </button>
+        )}
       </div>
 
-      <div className="space-y-3">
-        <select
-          value={selectedPlayerId}
-          onChange={(e) => setSelectedPlayerId(e.target.value)}
-          className="w-full rounded border p-3"
-        >
-          <option value="">Select Player</option>
+      {role === "admin" && (
+        <div className="space-y-3">
+          <select
+            value={selectedPlayerId}
+            onChange={(e) => setSelectedPlayerId(e.target.value)}
+            className="w-full rounded border p-3"
+          >
+            <option value="">Select Player</option>
 
-          {availablePlayers.map((player) => (
-            <option key={player.id} value={player.id}>
-              {player.name} - {player.finalCategory}
-            </option>
-          ))}
-        </select>
+            {availablePlayers.map((player) => (
+              <option key={player.id} value={player.id}>
+                {player.name} - {player.finalCategory}
+              </option>
+            ))}
+          </select>
 
-        <button
-          disabled={!selectedPlayerId}
-          onClick={handleAddPlayer}
-          className={`w-full rounded px-4 py-3 text-white ${
-            selectedPlayerId
-              ? "bg-blue-600 hover:bg-blue-700"
-              : "cursor-not-allowed bg-gray-400"
-          }`}
-        >
-          Add Player
-        </button>
-      </div>
+          <button
+            disabled={!selectedPlayerId}
+            onClick={handleAddPlayer}
+            className={`w-full rounded px-4 py-3 text-white ${
+              selectedPlayerId
+                ? "bg-blue-600 hover:bg-blue-700"
+                : "cursor-not-allowed bg-gray-400"
+            }`}
+          >
+            Add Player
+          </button>
+        </div>
+      )}
     </>
   );
 }
